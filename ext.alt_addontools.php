@@ -27,7 +27,7 @@ class Alt_addontools_ext {
         
 		if(isset($this->EE->session->cache['ALT_AddonTools']) === FALSE){
 			$this->EE->session->cache['ALT_AddonTools'] = array(
-                'log_init' => FALSE
+                
                 );
             }
         } // end public function __construct($settings)
@@ -61,9 +61,13 @@ class Alt_addontools_ext {
 
         
     public function bootstrap_libraries($session) {
-        $this->_add_console_logging($session);
-        $this->_add_querypath($session);
-        $this->_add_twig($session);
+        if(!isset($_GET['C']) || $_GET['C'] != 'javascript')  {
+            // The javascript check is in because we don't want it doing stuff a zillion times 
+            // for all of EE's concatenated javascript stuff in the CP!
+            $this->_add_console_logging($session);
+            $this->_add_querypath($session);
+            $this->_add_twig($session);
+            }
         }
         
 	private function _add_console_logging($session) { 
@@ -71,11 +75,10 @@ class Alt_addontools_ext {
         require_once(dirname(__FILE__).'/libraries/Consolelog_ee/Consolelog_ee.php');
         $this->EE->logconsole = new Consolelog_ee;
         if($this->settings['console_enabled']) {
-            $this->EE->logconsole->enabled = TRUE;
-            if(!$this->EE->session->cache['ALT_AddonTools']['log_init']) {
-        //      $this->EE->logconsole->clinfo("Console Logging is enabled!");
-                $this->EE->session->cache['ALT_AddonTools']['log_init'] = TRUE;
+            if($this->EE->logconsole->uagent == 'FIREFOX') {
+                $this->EE->logconsole->enabled = TRUE;
                 }
+            $this->EE->logconsole->clinfo("Console Logging is enabled!");
             }
         else {
             $this->EE->logconsole->enabled = FALSE;

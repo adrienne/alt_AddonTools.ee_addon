@@ -23,7 +23,7 @@ class Consolelog_ee {
             $this->uagent = 'FIREFOX';
             }
         else if(stripos($_SERVER["HTTP_USER_AGENT"],'Chrome') > -1) {
-            $this->uagent = 'CHROME';
+            // $this->uagent = 'CHROME';
             }
             
         if($this->uagent) {
@@ -33,13 +33,13 @@ class Consolelog_ee {
         }
 
     public function cllog(/*fmt, obj1, obj2, ...*/) {
-            if($this->enabled) {
+            if($this->enabled && $this->uagent) {
             $args = func_get_args();
             call_user_func_array(array(FireLogger::$default, 'log'), $args);
             }
         }
     public function clwarn(/*fmt, obj1, obj2, ...*/) {
-        if($this->enabled) {
+        if($this->enabled && $this->uagent) {
             $args = func_get_args();
             array_unshift($args, 'warning');
             call_user_func_array(array(FireLogger::$default, 'log'), $args);
@@ -47,7 +47,7 @@ class Consolelog_ee {
         }
         
     public function clerror(/*fmt, obj1, obj2, ...*/) {
-        if($this->enabled) {
+        if($this->enabled && $this->uagent) {
             $args = func_get_args();
             array_unshift($args, 'error');
             call_user_func_array(array(FireLogger::$default, 'log'), $args);
@@ -55,7 +55,7 @@ class Consolelog_ee {
         }
         
     public function clinfo(/*fmt, obj1, obj2, ...*/) {
-        if($this->enabled) {
+        if($this->enabled && $this->uagent) {
             $args = func_get_args();
             array_unshift($args, 'info');
             call_user_func_array(array(FireLogger::$default, 'log'), $args);
@@ -63,7 +63,7 @@ class Consolelog_ee {
         }
         
     public function clcritical(/*fmt, obj1, obj2, ...*/) {
-        if($this->enabled) {
+        if($this->enabled && $this->uagent) {
             $args = func_get_args();
             array_unshift($args, 'critical');
             call_user_func_array(array(FireLogger::$default, 'log'), $args);
