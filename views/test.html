@@ -1,0 +1,12 @@
+{% autoescape off %}
+{% if books|length > 0 %}
+    <dl>
+        {% for key,months in books %}
+            <dt>{{key}}</dt>
+            {% for book in months %}
+            <dd>{{book.author}} : <em>{{ book.title }}</em> ({{book.publisher}})</dd>
+        {% endfor %}
+        {% endfor %}
+    </dl>
+{% endif %}
+{% endautoescape %}
