@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright 2011 Craig Campbell
+ * Copyright 2012 Craig Campbell
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,77 +26,52 @@ class ChromePhp
     /**
      * @var string
      */
-    const CHROMEPHP_COOKIE_NAME = 'chromephp_log';
+    const VERSION = '3.0';
 
     /**
      * @var string
      */
-    const CHROMEPHP_VERSION = '2.2.3';
+    const HEADER_NAME = 'X-ChromePhp-Data';
 
     /**
      * @var string
      */
-    const CHROMEPHP_LOG_PATH = 'log_path';
+    const BACKTRACE_LEVEL = 'backtrace_level';
 
     /**
      * @var string
      */
-    const CHROMEPHP_URL_PATH = 'url_path';
+    const LOG = 'log';
 
     /**
      * @var string
      */
-    const CHROMEPHP_STORE_LOGS = 'store_logs';
+    const WARN = 'warning'; // edited by ALT to match FireLogger
 
     /**
      * @var string
      */
-    const CHROMEPHP_BACKTRACE_LEVEL = 'backtrace_level';
+    const ERROR = 'error';
 
     /**
      * @var string
      */
-    const CHROMEPHP_MAX_TRANSFER = 'max_transfer';
+    const GROUP = 'group';
 
     /**
      * @var string
      */
-    const CHROMEPHP_LOG = 'log';
+    const INFO = 'info';
 
     /**
      * @var string
      */
-    const CHROMEPHP_WARN = 'warn';
+    const GROUP_END = 'groupEnd';
 
     /**
      * @var string
      */
-    const CHROMEPHP_ERROR = 'error';
-
-    /**
-     * @var string
-     */
-    const CHROMEPHP_GROUP = 'group';
-
-    /**
-     * @var string
-     */
-    const CHROMEPHP_INFO = 'info';
-
-    /**
-     * @var string
-     */
-    const CHROMEPHP_GROUP_END = 'groupEnd';
-
-    /**
-     * @var string
-     */
-    const CHROMEPHP_GROUP_COLLAPSED = 'groupCollapsed';
-
-    /**
-     * @var string
-     */
-    const CHROMEPHP_COOKIE_SIZE_WARNING = 'cookie size of 4kb exceeded! try ChromePhp::useFile() to pull the log data from disk';
+    const GROUP_COLLAPSED = 'groupCollapsed';
 
     /**
      * @var string
@@ -112,7 +87,7 @@ class ChromePhp
      * @var array
      */
     protected $_json = array(
-        'version' => self::CHROMEPHP_VERSION,
+        'version' => self::VERSION,
         'columns' => array('label', 'log', 'backtrace', 'type'),
         'rows' => array()
     );
@@ -131,11 +106,7 @@ class ChromePhp
      * @var array
      */
     protected $_settings = array(
-        self::CHROMEPHP_LOG_PATH => null,
-        self::CHROMEPHP_URL_PATH=> null,
-        self::CHROMEPHP_STORE_LOGS => false,
-        self::CHROMEPHP_BACKTRACE_LEVEL => 1,
-        self::CHROMEPHP_MAX_TRANSFER => 3000
+        self::BACKTRACE_LEVEL => 1
     );
 
     /**
@@ -155,7 +126,6 @@ class ChromePhp
      */
     private function __construct()
     {
-        $this->_deleteCookie();
         $this->_php_version = phpversion();
         $this->_timestamp = $this->_php_version >= 5.1 ? $_SERVER['REQUEST_TIME'] : time();
         $this->_json['request_uri'] = $_SERVER['REQUEST_URI'];
@@ -187,7 +157,7 @@ class ChromePhp
         $args = func_get_args();
         $severity = count($args) == 3 ? array_pop($args) : '';
 
-        // save precious bytes in the cookie
+        // save precious bytes
         if ($severity == self::LOG) {
             $severity = '';
         }
@@ -204,7 +174,7 @@ class ChromePhp
      */
     public static function warn()
     {
-        return self::_log(func_get_args() + array('type' => self::CHROMEPHP_WARN));
+        return self::_log(func_get_args() + array('type' => self::WARN));
     }
 
     /**
@@ -216,7 +186,7 @@ class ChromePhp
      */
     public static function error()
     {
-        return self::_log(func_get_args() + array('type' => self::CHROMEPHP_ERROR));
+        return self::_log(func_get_args() + array('type' => self::ERROR));
     }
 
     /**
@@ -226,7 +196,7 @@ class ChromePhp
      */
     public static function group()
     {
-        return self::_log(func_get_args() + array('type' => self::CHROMEPHP_GROUP));
+        return self::_log(func_get_args() + array('type' => self::GROUP));
     }
 
     /**
@@ -236,7 +206,7 @@ class ChromePhp
      */
     public static function info()
     {
-        return self::_log(func_get_args() + array('type' => self::CHROMEPHP_INFO));
+        return self::_log(func_get_args() + array('type' => self::INFO));
     }
 
     /**
@@ -246,7 +216,7 @@ class ChromePhp
      */
     public static function groupCollapsed()
     {
-        return self::_log(func_get_args() + array('type' => self::CHROMEPHP_GROUP_COLLAPSED));
+        return self::_log(func_get_args() + array('type' => self::GROUP_COLLAPSED));
     }
 
     /**
@@ -256,7 +226,7 @@ class ChromePhp
      */
     public static function groupEnd()
     {
-        return self::_log(func_get_args() + array('type' => self::CHROMEPHP_GROUP_END));
+        return self::_log(func_get_args() + array('type' => self::GROUP_END));
     }
 
     /**
@@ -271,7 +241,7 @@ class ChromePhp
         unset($args['type']);
 
         // nothing passed in, don't do anything
-        if (count($args) == 0 && $type != self::CHROMEPHP_GROUP_END) {
+        if (count($args) == 0 && $type != self::GROUP_END) {
             return;
         }
 
@@ -280,10 +250,6 @@ class ChromePhp
         $value = isset($args[0]) ? $args[0] : '';
 
         $logger = self::getInstance();
-
-        if ($logger->_error_triggered) {
-            return;
-        }
 
         // if there are two values passed in then the first one is the label
         if (count($args) == 2) {
@@ -295,7 +261,7 @@ class ChromePhp
         $value = $logger->_convert($value);
 
         $backtrace = debug_backtrace(false);
-        $level = $logger->getSetting(self::CHROMEPHP_BACKTRACE_LEVEL);
+        $level = $logger->getSetting(self::BACKTRACE_LEVEL);
 
         $backtrace_message = 'unknown';
         if (isset($backtrace[$level]['file']) && isset($backtrace[$level]['line'])) {
@@ -325,7 +291,7 @@ class ChromePhp
         $object_as_array = array();
 
         // first add the class name
-        $object_as_array['class'] = get_class($object);
+        $object_as_array['___class_name'] = get_class($object);
 
         // loop through object vars
         $object_vars = get_object_vars($object);
@@ -392,7 +358,7 @@ class ChromePhp
     }
 
     /**
-     * adds a value to the cookie
+     * adds a value to the data array
      *
      * @var mixed
      * @return void
@@ -408,94 +374,15 @@ class ChromePhp
             $this->_backtraces[] = $backtrace;
         }
 
-        $this->_clearRows();
         $row = array($label, $log, $backtrace, $type);
 
-        // if we are in cookie mode and the row won't fit then don't add it
-        if ($this->getSetting(self::CHROMEPHP_LOG_PATH) === null && !$this->_willFit($row)) {
-            return $this->_cookieMonster();
-        }
-
         $this->_json['rows'][] = $row;
-        $this->_writeCookie();
+        $this->_writeHeader($this->_json);
     }
 
-    /**
-     * clears existing rows in special cases
-     *
-     * for ajax requests chrome will be listening for cookie changes
-     * this means we can send the cookie data one row at a time as it comes in
-     *
-     * @return void
-     */
-    protected function _clearRows()
+    protected function _writeHeader($data)
     {
-        // if we are in file mode we want the file to have all the log data
-        if ($this->getSetting(self::CHROMEPHP_LOG_PATH) !== null) {
-            return;
-        }
-
-        // X-Requested-With header not present or not equal to XMLHttpRequest
-        if (!isset($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-            return;
-        }
-
-        if ($_SERVER['HTTP_X_REQUESTED_WITH'] != 'XMLHttpRequest') {
-            return;
-        }
-
-        $this->_json['rows'] = array();
-    }
-
-    /**
-     * determines if this row will fit in the cookie
-     *
-     * @param array $row
-     * @return bool
-     */
-    protected function _willFit($row)
-    {
-        $json = $this->_json;
-        $json['rows'][] = $row;
-
-        // if we don't have multibyte string length available just use regular string length
-        // this doesn't have to be perfect, just want to prevent sending more data
-        // than chrome or apache can handle in a cookie
-        $encoded_string = $this->_encode($json);
-        $size = function_exists('mb_strlen') ? mb_strlen($encoded_string) : strlen($encoded_string);
-
-        // if the size is greater than the max transfer size
-        if ($size > $this->getSetting(self::CHROMEPHP_MAX_TRANSFER)) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * writes the cookie
-     *
-     * @return bool
-     */
-    protected function _writeCookie()
-    {
-        // if we are going to use a file then use that
-        // here we only want to json_encode
-        if ($this->getSetting(self::CHROMEPHP_LOG_PATH) !== null) {
-            return $this->_writeToFile(json_encode($this->_json));
-        }
-
-        return $this->_setCookie($this->_json);
-    }
-
-    /**
-     * deletes the main cookie
-     *
-     * @return bool
-     */
-    protected function _deleteCookie()
-    {
-        return setcookie(self::COOKIE_NAME, null, 1);
+        header(self::HEADER_NAME . ': ' . $this->_encode($data));
     }
 
     /**
@@ -507,17 +394,6 @@ class ChromePhp
     protected function _encode($data)
     {
         return base64_encode(utf8_encode(json_encode($data)));
-    }
-
-    /**
-     * sets the main cookie
-     *
-     * @param array
-     * @return bool
-     */
-    protected function _setCookie($data)
-    {
-        return setcookie(self::CHROMEPHP_COOKIE_NAME, $this->_encode($data), time() + 30);
     }
 
     /**
@@ -557,65 +433,5 @@ class ChromePhp
             return null;
         }
         return $this->_settings[$key];
-    }
-
-    /**
-     * this will allow you to specify a path on disk and a uri to access a static file that can store json
-     *
-     * this allows you to log data that is more than 4k
-     *
-     * @param string path to directory on disk to keep log files
-     * @param string url path to url to access the files
-     */
-    public static function useFile($path, $url)
-    {
-        $logger = self::getInstance();
-        $logger->addSetting(self::CHROMEPHP_LOG_PATH, rtrim($path, '/'));
-        $logger->addSetting(self::CHROMEPHP_URL_PATH, rtrim($url, '/'));
-    }
-
-    /**
-     * handles cases when there is too much data
-     *
-     * @param string
-     * @return void
-     */
-    protected function _cookieMonster()
-    {
-        $this->_error_triggered = true;
-
-        $this->_json['rows'][] = array(null, self::CHROMEPHP_COOKIE_SIZE_WARNING, 'ChromePhp', self::WARN);
-
-        return $this->_writeCookie();
-    }
-
-    /**
-     * writes data to a file
-     *
-     * @param string
-     * @return void
-     */
-    protected function _writeToFile($json)
-    {
-        // if the log path is not setup then create it
-        if (!is_dir($this->getSetting(self::CHROMEPHP_LOG_PATH))) {
-            mkdir($this->getSetting(self::CHROMEPHP_LOG_PATH));
-        }
-
-        $file_name = 'last_run.json';
-        if ($this->getSetting(self::CHROMEPHP_STORE_LOGS)) {
-            $file_name = 'run_' . $this->_timestamp . '.json';
-        }
-
-        file_put_contents($this->getSetting(self::CHROMEPHP_LOG_PATH) . '/' . $file_name, $json);
-
-        $data = array(
-            'uri' => $this->getSetting(self::CHROMEPHP_URL_PATH) . '/' . $file_name,
-            'request_uri' => $_SERVER['REQUEST_URI'],
-            'time' => $this->_timestamp,
-            'version' => self::CHROMEPHP_VERSION
-        );
-
-        return $this->_setCookie($data);
     }
 }
