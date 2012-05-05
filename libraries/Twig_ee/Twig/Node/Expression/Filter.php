@@ -11,78 +11,51 @@
  */
 class Twig_Node_Expression_Filter extends Twig_Node_Expression
 {
-    public function __construct(Twig_NodeInterface $node, Twig_NodeInterface $filters, $lineno, $tag = null)
+    public function __construct(Twig_NodeInterface $node, Twig_Node_Expression_Constant $filterName, Twig_NodeInterface $arguments, $lineno, $tag = null)
     {
-        parent::__construct(array('node' => $node, 'filters' => $filters), array(), $lineno, $tag);
+        parent::__construct(array('node' => $node, 'filter' => $filterName, 'arguments' => $arguments), array(), $lineno, $tag);
     }
 
-    public function compile($compiler)
+    public function compile(Twig_Compiler $compiler)
     {
-        $filterMap = $compiler->getEnvironment()->getFilters();
+        $name = $this->getNode('filter')->getAttribute('value');
 
-        $postponed = array();
-        for ($i = count($this->filters) - 1; $i >= 0; $i -= 2) {
-            $name = $this->filters->{$i - 1}['value'];
-            $attrs = $this->filters->{$i};
-            if (!isset($filterMap[$name])) {
-                throw new Twig_SyntaxError(sprintf('The filter "%s" does not exist', $name), $this->getLine());
-            } else {
-                $compiler->raw($filterMap[$name]->compile().($filterMap[$name]->needsEnvironment() ? '($this->env, ' : '('));
+        if (false === $filter = $compiler->getEnvironment()->getFilter($name)) {
+            $message = sprintf('The filter "%s" does not exist', $name);
+            if ($alternatives = $compiler->getEnvironment()->computeAlternatives($name, array_keys($compiler->getEnvironment()->getFilters()))) {
+                $message = sprintf('%s. Did you mean "%s"', $message, implode('", "', $alternatives));
             }
-            $postponed[] = $attrs;
+
+            throw new Twig_Error_Syntax($message, $this->getLine());
         }
 
-        $this->node->compile($compiler);
-
-        foreach (array_reverse($postponed) as $attributes) {
-            foreach ($attributes as $node) {
-                $compiler
-                    ->raw(', ')
-                    ->subcompile($node)
-                ;
-            }
-            $compiler->raw(')');
-        }
+        $this->compileFilter($compiler, $filter);
     }
 
-    public function prependFilter(Twig_Node_Expression_Constant $name, Twig_Node $end)
+    protected function compileFilter(Twig_Compiler $compiler, Twig_FilterInterface $filter)
     {
-        $filters = array($name, $end);
-        foreach ($this->filters as $node) {
-            $filters[] = $node;
+        $compiler
+            ->raw($filter->compile().'(')
+            ->raw($filter->needsEnvironment() ? '$this->env, ' : '')
+            ->raw($filter->needsContext() ? '$context, ' : '')
+        ;
+
+        foreach ($filter->getArguments() as $argument) {
+            $compiler
+                ->string($argument)
+                ->raw(', ')
+            ;
         }
 
-        $this->filters = new Twig_Node($filters, array(), $this->filters->getLine());
-    }
+        $compiler->subcompile($this->getNode('node'));
 
-    public function appendFilter(Twig_Node_Expression_Constant $name, Twig_Node $end)
-    {
-        $filters = array();
-        foreach ($this->filters as $node) {
-            $filters[] = $node;
+        foreach ($this->getNode('arguments') as $node) {
+            $compiler
+                ->raw(', ')
+                ->subcompile($node)
+            ;
         }
 
-        $filters[] = $name;
-        $filters[] = $end;
-
-        $this->filters = new Twig_Node($filters, array(), $this->filters->getLine());
-    }
-
-    public function appendFilters(Twig_NodeInterface $filters)
-    {
-        for ($i = 0; $i < count($filters); $i += 2) {
-            $this->appendFilter($filters->{$i}, $filters->{$i + 1});
-        }
-    }
-
-    public function hasFilter($name)
-    {
-        for ($i = 0; $i < count($this->filters); $i += 2) {
-            if ($name == $this->filters->{$i}['value']) {
-                return true;
-            }
-        }
-
-        return false;
+        $compiler->raw(')');
     }
 }

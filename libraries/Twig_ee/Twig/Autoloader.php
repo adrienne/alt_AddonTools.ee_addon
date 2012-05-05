@@ -12,9 +12,8 @@
 /**
  * Autoloads Twig classes.
  *
- * @package    twig
- * @author     Fabien Potencier <fabien.potencier@symfony-project.com>
- * @version    SVN: $Id$
+ * @package twig
+ * @author  Fabien Potencier <fabien@symfony.com>
  */
 class Twig_Autoloader
 {
@@ -39,8 +38,8 @@ class Twig_Autoloader
         if (0 !== strpos($class, 'Twig')) {
             return;
         }
-        $file = dirname(__FILE__).'/../'.str_replace('_', '/', $class).'.php';
-        if (file_exists($file)) {
+
+        if (is_file($file = dirname(__FILE__).'/../'.str_replace(array('_', "\0"), array('/', ''), $class).'.php')) {
             require $file;
         }
     }
