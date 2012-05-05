@@ -1,15 +1,15 @@
 <?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
-/**
-* @package ALT Addon Tools
-* @version 0.1
-* @author Adrienne L. Travis
-*/
 
     define("ADDONTOOLS_VERSION",        "0.1");
     define("ADDONTOOLS_DOCS_URL",       "https://github.com/adrienne/alt_AddonTools.ee_addon/tree/master/");
     define("ADDONTOOLS_ADDON_ID",       "ALT AddonTools");
     define("ADDONTOOLS_DESCRIPTION",    "Adds useful tools to ExpressionEngine, for addon developers");
 
+/**
+ * @package ALT AddonTools
+ * @version 0.1
+ * @author Adrienne L. Travis
+**/
 class Alt_addontools_ext {
 
 	var $settings	    = array();
@@ -19,19 +19,23 @@ class Alt_addontools_ext {
 	var $settings_exist	= 'n';  // If $settings_exist = 'y' then a settings page will be shown in the ExpressionEngine admin
 	var $docs_url		= ADDONTOOLS_DOCS_URL;
 
-
 	public function __construct($settings='') {
-        $this->EE =& get_instance();
+        $this->EE       =& get_instance();
         $this->settings = $settings;
         $this->settings['console_enabled'] = ($this->EE->config->item('debug') == 2) ? TRUE : FALSE;
         
 		if(isset($this->EE->session->cache['ALT_AddonTools']) === FALSE){
 			$this->EE->session->cache['ALT_AddonTools'] = array(
-                
+                'log_init' => FALSE
                 );
             }
         } // end public function __construct($settings)
 
+/**
+ * Activates extension; sets up records in exp_extensions table with hooks
+ * 
+ * @return boolean
+**/
 	function activate_extension() {
     
         // Delete old hooks
@@ -59,26 +63,37 @@ class Alt_addontools_ext {
 		return TRUE;
         } // end function activate_extension() 
 
-        
+ 
+       
+/**
+ * Bootstrap libraries into global EE object
+ * 
+ * @param  object $session [description]
+ * @return void
+**/
     public function bootstrap_libraries($session) {
-        if(!isset($_GET['C']) || $_GET['C'] != 'javascript')  {
-            // The javascript check is in because we don't want it doing stuff a zillion times 
-            // for all of EE's concatenated javascript stuff in the CP!
-            $this->_add_console_logging($session);
-            $this->_add_querypath($session);
-            $this->_add_twig($session);
-            }
+        $this->_add_console_logging($session);
+        $this->_add_querypath($session);
+        $this->_add_twig($session);
         }
-        
-	private function _add_console_logging($session) { 
 
+
+        
+/**
+ * [_add_console_logging description]
+ * 
+ * @param  object $session [description]
+ * @return void 
+**/
+    private function _add_console_logging($session) { 
         require_once(dirname(__FILE__).'/libraries/Consolelog_ee/Consolelog_ee.php');
         $this->EE->logconsole = new Consolelog_ee;
         if($this->settings['console_enabled']) {
-            if($this->EE->logconsole->uagent == 'FIREFOX') {
-                $this->EE->logconsole->enabled = TRUE;
+            $this->EE->logconsole->enabled = TRUE;
+            if(!$this->EE->session->cache['ALT_AddonTools']['log_init']) {
+        //      $this->EE->logconsole->clinfo("Console Logging is enabled!");
+                $this->EE->session->cache['ALT_AddonTools']['log_init'] = TRUE;
                 }
-            $this->EE->logconsole->clinfo("Console Logging is enabled!");
             }
         else {
             $this->EE->logconsole->enabled = FALSE;
@@ -101,20 +116,25 @@ class Alt_addontools_ext {
 
         } // end function log_queries()
     
-    /**
-     * Manual says this function is required.
-     * @param string $current currently installed version
-     */
+/**
+ * Manual says this function is required
+ * 
+ * @param  string $current currently installed version
+ * @return none
+ */
     function update_extension($current = '') {
     
         } // end function update_extension($current)
 
-
+/**
+ * Removes extension record from exp_extensions table when disabling extension
+ * 
+ * @return none
+ */
 	function disable_extension() {
 		// Delete old hooks
         $this->EE->db->query("DELETE FROM exp_extensions WHERE class = '". __CLASS__ ."'");
         } // end function disable_extension()
 
     } // end class Alt_debugtools_ext
-
 ?>
